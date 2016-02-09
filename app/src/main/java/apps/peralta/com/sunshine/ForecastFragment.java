@@ -2,9 +2,11 @@ package apps.peralta.com.sunshine;
 
 import android.app.Fragment;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.LoginFilter;
 import android.text.format.Time;
 import android.util.Log;
@@ -65,34 +67,38 @@ public class ForecastFragment extends Fragment {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_refresh) {
-            FetchWeatherTask weatherTask = new FetchWeatherTask();
-            weatherTask.execute("Miami");
+            updateWeather();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
+    private void updateWeather() {
+
+        FetchWeatherTask weatherTask = new FetchWeatherTask();
+        //We declare a SharedPreferences object and set its value using the preferenceManager.getDefaultSharedPreferences
+        //We create a String which will be populated with data from the prefs object by getting the location_key
+        // or location_default values if empty
+        String location = PreferenceManager.getDefaultSharedPreferences(getActivity()).
+                getString(getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+        weatherTask.execute(location);
+    }
+
+    @Override
+    public void onStart() {
+        //With this method we'll update the data in the listview without hitting the refresh button
+        super.onStart();
+        updateWeather();
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
-        String[] foreCastArray = {
-                "Today - Sunny - 88/63",
-                "Tomorrow - Foggy - 70/40",
-                "Wednesday - Cloudy - 72/63",
-                "Thursday - Asteroids - 75/65",
-                "Friday - Heavy Rain - 65/56",
-                "Saturday - HELP TRAPPED IN WEATHERSTATION - 60/51",
-                "Sunday - Sunny - 80/68",
-                "Dummy Data, Dummy",
-                "Dummy Data, Dummy",
-                "Dummy Data, Dummy",
-                "Dummy Data, Dummy",
-                "Dummy Data, Dummy"
-        };
 
-        List<String> weekForecast = new ArrayList<>(Arrays.asList(foreCastArray));
+
+        List<String> weekForecast = new ArrayList<>();
 
         mForecastAdapter = new ArrayAdapter<String>(getActivity(),
                                                     R.layout.list_item_forecast,
@@ -275,9 +281,19 @@ public class ForecastFragment extends Fragment {
 
         private String formatHighLows(double high, double low) {
             // For presentation, assume the user doesn't care about tenths of a degree.
+
+            String unitType = PreferenceManager.getDefaultSharedPreferences(getActivity()).
+                    getString(getString(R.string.pref_units_key), getString(R.string.pref_units_metric));
+
+            if(unitType.equals(getString(R.string.pref_units_imperial))){
+                high = (high * 1.8) + 32;
+                low = (low * 1.8) + 32;
+            }
+            else if(!unitType.equals(getString(R.string.pref_units_metric))){
+                Log.d(LOG_TAG,"Unit type not found: "+unitType);
+            }
             long roundedHigh = Math.round(high);
             long roundedLow = Math.round(low);
-
             String highLowStr = roundedHigh + "/" + roundedLow;
             return highLowStr;
         }
