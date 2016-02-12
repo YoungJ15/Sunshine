@@ -74,6 +74,9 @@ public class MainActivity extends ActionBarActivity {
             case R.id.action_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
                 return true;
+            case R.id.action_map:
+                openPreferredLocationInMap();
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
