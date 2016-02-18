@@ -3,7 +3,6 @@ package apps.peralta.com.sunshine.data;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.location.Location;
 
 /**
  * Created by Josermando Peralta on 2/17/2016.

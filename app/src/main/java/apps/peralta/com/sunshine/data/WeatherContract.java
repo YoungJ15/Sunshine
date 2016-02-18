@@ -13,7 +13,7 @@ import android.text.format.Time;
 //This class defines table and columns name for the weather database
 public class WeatherContract {
     //The content authority is a name for the entire content provider
-    public static final String CONTENT_AUTHORITY = "com.sunshine.peralta.apps";
+    public static final String CONTENT_AUTHORITY = "apps.peralta.com.sunshine";
     public static final Uri BASE_CONTENT_URI = Uri.parse("content://" + CONTENT_AUTHORITY);
     public static final String PATH_WEATHER = "weather";
     public static final String PATH_LOCATION = "location";
