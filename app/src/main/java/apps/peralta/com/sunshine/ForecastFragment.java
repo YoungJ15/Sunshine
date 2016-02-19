@@ -2,10 +2,13 @@ package apps.peralta.com.sunshine;
 
 import android.app.Fragment;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
 import android.text.format.Time;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -32,11 +35,80 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import apps.peralta.com.sunshine.data.WeatherContract;
+
 /**
  * Created by Josermando on 2/7/2016.
  */
-public class ForecastFragment extends Fragment {
-    private ArrayAdapter<String> mForecastAdapter;
+public class ForecastFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
+    public static final String LOG_TAG = ForecastFragment.class.getSimpleName();
+    private ForecastAdapter mForecastAdapter;
+
+    private ListView mListView;
+    private int mPosition = ListView.INVALID_POSITION;
+    private boolean mUseTodayLayout;
+
+    private static final String SELECTED_KEY = "selected_position";
+
+    private static final int FORECAST_LOADER = 0;
+    // For the forecast view we're showing only a small subset of the stored data.
+    // Specify the columns we need.
+    private static final String[] FORECAST_COLUMNS = {
+            // In this case the id needs to be fully qualified with a table name, since
+            // the content provider joins the location & weather tables in the background
+            // (both have an _id column)
+            // On the one hand, that's annoying.  On the other, you can search the weather table
+            // using the location set by the user, which is only in the Location table.
+            // So the convenience is worth it.
+            WeatherContract.WeatherEntry.TABLE_NAME + "." + WeatherContract.WeatherEntry._ID,
+            WeatherContract.WeatherEntry.COLUMN_DATE,
+            WeatherContract.WeatherEntry.COLUMN_SHORT_DESC,
+            WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
+            WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
+            WeatherContract.LocationEntry.COLUMN_LOCATION_SETTING,
+            WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
+            WeatherContract.LocationEntry.COLUMN_COORD_LAT,
+            WeatherContract.LocationEntry.COLUMN_COORD_LONG
+    };
+
+    // These indices are tied to FORECAST_COLUMNS.  If FORECAST_COLUMNS changes, these
+    // must change.
+    static final int COL_WEATHER_ID = 0;
+    static final int COL_WEATHER_DATE = 1;
+    static final int COL_WEATHER_DESC = 2;
+    static final int COL_WEATHER_MAX_TEMP = 3;
+    static final int COL_WEATHER_MIN_TEMP = 4;
+    static final int COL_LOCATION_SETTING = 5;
+    static final int COL_WEATHER_CONDITION_ID = 6;
+    static final int COL_COORD_LAT = 7;
+    static final int COL_COORD_LONG = 8;
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        return null;
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+
+    }
+
+    /**
+     * A callback interface that all activities containing this fragment must
+     * implement. This mechanism allows activities to be notified of item
+     * selections.
+     */
+    public interface Callback {
+        /**
+         * DetailFragmentCallback for when an item has been selected.
+         */
+        public void onItemSelected(Uri dateUri);
+    }
 
     public ForecastFragment() {
 
@@ -90,31 +162,40 @@ public class ForecastFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        // The ForecastAdapter will take data from a source and
+        // use it to populate the ListView it's attached to.
+        mForecastAdapter = new ForecastAdapter(getActivity(), null,0);
+
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-
-
-
-        List<String> weekForecast = new ArrayList<>();
-
-        mForecastAdapter = new ArrayAdapter<String>(getActivity(),
-                                                    R.layout.list_item_forecast,
-                                                    R.id.list_item_forecast_textview,
-                                                    weekForecast
-        );
-        ListView listView = (ListView) rootView.findViewById(R.id.listview_forecast);
-        listView.setAdapter(mForecastAdapter);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener(){
+        //Get a reference  to the ListView, and attach this adapter to it
+        mListView = (ListView) rootView.findViewById(R.id.listview_forecast);
+        mListView.setAdapter(mForecastAdapter);
+        //We'll call our MainActivity
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String forecast = mForecastAdapter.getItem(position);
-                //Toast.makeText(getActivity(), forecast, Toast.LENGTH_SHORT).show();
-                Intent detailIntent = new Intent(getActivity(), DetailActivity.class);
-                detailIntent.putExtra(Intent.EXTRA_TEXT, forecast);
-                startActivity(detailIntent);
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                // CursorAdapter returns a cursor at the correct position for getItem(), or null
+                // if it cannot seek to that position.
+                Cursor cursor = (Cursor) adapterView.getItemAtPosition(position);
+                if (cursor != null) {
+                    String locationSetting = Utility.getPreferredLocation(getActivity());
+                    ((Callback) getActivity())
+                            .onItemSelected(WeatherContract.WeatherEntry.buildWeatherLocationWithDate(
+                                    locationSetting, cursor.getLong(COL_WEATHER_DATE)
+                            ));
+                }
+                mPosition = position;
             }
         });
 
+          if (savedInstanceState != null && savedInstanceState.containsKey(SELECTED_KEY)) {
+            // The listview probably hasn't even been populated yet.  Actually perform the
+            // swapout in onLoadFinished.
+            mPosition = savedInstanceState.getInt(SELECTED_KEY);
+        }
+
+        mForecastAdapter.setUseTodayLayout(mUseTodayLayout);
 
         return rootView;
     }
